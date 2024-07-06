@@ -1,0 +1,47 @@
+version: '3.7'
+
+services:
+  frontend:
+    build: ./frontend
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`oshone.com.ng`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+  backend:
+    build: ./backend
+    labels:
+      - "traefik.http.routers.backend.rule=Host(`oshone.com.ng`) && PathPrefix(`/api`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    environment:
+      DATABASE_URL: postgres://admin:password@db/oshonedb
+
+  traefik:
+    image: traefik:v2.4
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: oshonedbdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+
+volumes:
+  postgres_data:
