@@ -1,12 +1,32 @@
-FROM node:20 AS build
+# Stage 1: Build stage
+# Use a slim Node.js image for a smaller footprint
+FROM node:current-slim AS builder
+
+# Set the working directory in the container
 WORKDIR /app
-COPY package.json package-lock.json /app/
+
+# Copy package.json and package-lock.json to leverage Docker cache
+# This is efficient for rebuilding images when dependencies have not changed
+COPY ./package.json ./package-lock.json ./
+
+# Use npm install to install dependencies
 RUN npm install
-COPY . /app/
-RUN npm run build
 
+# Copy the rest of the application code
+COPY . .
 
-FROM nginx:alpine
-COPY --from=build /app/build /usr/share/nginx/html
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+# Stage 2: Run stage
+# Again, using a slim Node.js image for runtime to reduce image size
+FROM node:current-slim
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy built artifacts from the builder stage
+COPY --from=builder /app ./
+
+# Inform Docker that the container listens on port 3000 at runtime
+EXPOSE 3000
+
+# Command to run the application
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
